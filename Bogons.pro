@@ -3,7 +3,7 @@ CONFIG += console c++11
 CONFIG -= app_bundle
 CONFIG -= qt
 
-QMAKE_CXXFLAGS += -Wno-switch
+unix:QMAKE_CXXFLAGS += -Wno-switch
 
 SOURCES += \ 
     src/main.cpp \
