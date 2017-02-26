@@ -11,5 +11,5 @@ Bogus Name Service (Yet another name server for zeroconf)
 ### Supported Platforms
 
 - Linux
-- Windows
 - macOS
+- Windows

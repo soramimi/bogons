@@ -49,16 +49,18 @@ void get_netif_table(std::vector<netif_t> *out)
 	struct ifaddrs *ifa_list;
 	if (getifaddrs(&ifa_list) == 0) {
 		for (struct ifaddrs *ifa = ifa_list; ifa; ifa = ifa->ifa_next) {
-			if (ifa->ifa_addr->sa_family == AF_INET) {
-				netif_t netif;
-				netif.addr = ntohl(*(uint32_t *)&((struct sockaddr_in *)ifa->ifa_addr)->sin_addr);
-				netif.mask = ntohl(*(uint32_t *)&((struct sockaddr_in *)ifa->ifa_netmask)->sin_addr);
-				if (netif.addr == 0) continue;
-				if (netif.addr == 0x7f000001) continue;
-				if (netif.addr == 0x7f000101) continue;
-				out->push_back(netif);
-			} else if (ifa->ifa_addr->sa_family == AF_INET6) {
-				// not implemented
+			if (ifa->ifa_addr) {
+				if (ifa->ifa_addr->sa_family == AF_INET) {
+					netif_t netif;
+					netif.addr = ntohl(*(uint32_t *)&((struct sockaddr_in *)ifa->ifa_addr)->sin_addr);
+					netif.mask = ntohl(*(uint32_t *)&((struct sockaddr_in *)ifa->ifa_netmask)->sin_addr);
+					if (netif.addr == 0) continue;
+					if (netif.addr == 0x7f000001) continue;
+					if (netif.addr == 0x7f000101) continue;
+					out->push_back(netif);
+				} else if (ifa->ifa_addr->sa_family == AF_INET6) {
+					// not implemented
+				}
 			}
 		}
 		freeifaddrs(ifa_list);
