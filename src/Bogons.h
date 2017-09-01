@@ -77,6 +77,7 @@ private:
 	void init_ttl();
 	std::string stripv4(uint32_t a);
 	void parse_response(char const *begin, char const *end, dns_header_t *header, std::list<question_t> *questions, std::list<answer_t> *answers);
+	void update_netif_table();
 };
 
 #endif // BOGONS_H

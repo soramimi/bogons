@@ -108,6 +108,7 @@ struct Bogons::Private {
 	std::string my_host_name;
 	std::string my_host_name_local;
 	std::vector<netif_t> netif_table;
+	time_t netif_timestamp = 0;
 
 	int ttl;
 
@@ -159,15 +160,24 @@ void Bogons::set_self_mode(bool f)
 	pv->self_mode = f;
 }
 
+void Bogons::update_netif_table()
+{
+	time_t t = time(nullptr);
+	if (pv->netif_timestamp < t) {
+		pv->netif_timestamp = t + 10;
+		if (pv->my_host_name.empty()) {
+			pv->netif_table.clear();
+		} else {
+			get_netif_table(&pv->netif_table);
+		}
+	}
+}
+
 void Bogons::set_hostname(const std::string &name)
 {
 	pv->my_host_name = name;
 	pv->my_host_name_local = name + ".local";
-	if (pv->my_host_name.empty()) {
-		pv->netif_table.clear();
-	} else {
-		get_netif_table(&pv->netif_table);
-	}
+	update_netif_table();
 }
 
 bool Bogons::eqi(const std::string &l, const std::string &r)
@@ -650,6 +660,7 @@ std::string Bogons::decode_netbios_name(const std::string &name, int *restype)
 
 bool Bogons::get_my_address(uint32_t srcaddr, Bogons::dns_a_record_t *out)
 {
+	update_netif_table();
 	std::vector<netif_t> const *table = &pv->netif_table;
 	for (std::vector<netif_t>::const_iterator it = table->begin(); it != table->end(); it++) {
 		netif_t const &netif = *it;
