@@ -8,15 +8,15 @@
 #pragma comment(lib, "ws2_32.lib")
 #endif
 
-#include "Bogons.h"
+#include "bogons.h"
 #include "network.h"
 
 #include <string.h>
 
 
-void apply_option(int argc, char **argv, Bogons *dns)
+void apply_option(int argc, char **argv, bogons *dns)
 {
-	Bogons::Mode mode = Bogons::Mode::DNS;
+	bogons::Mode mode = bogons::Mode::DNS;
 	bool self = false;
 	bool verbose = false;
 
@@ -24,13 +24,13 @@ void apply_option(int argc, char **argv, Bogons *dns)
 		char const *arg = argv[i];
 		if (arg[0] == '-') {
 			if (strcmp(arg, "-d") == 0 || strcmp(arg, "--dns") == 0) {
-				mode = Bogons::Mode::DNS;
+				mode = bogons::Mode::DNS;
 			} else if (strcmp(arg, "-w") == 0 || strcmp(arg, "--wins") == 0) {
-				mode = Bogons::Mode::WINS;
+				mode = bogons::Mode::WINS;
 			} else if (strcmp(arg, "-m") == 0 || strcmp(arg, "--mdns") == 0) {
-				mode = Bogons::Mode::MDNS;
+				mode = bogons::Mode::MDNS;
 			} else if (strcmp(arg, "-l") == 0 || strcmp(arg, "--llmnr") == 0) {
-				mode = Bogons::Mode::LLMNR;
+				mode = bogons::Mode::LLMNR;
 			} else if (strcmp(arg, "-s") == 0 || strcmp(arg, "--self") == 0) {
 				self = true;
 			} else if (strcmp(arg, "-v") == 0 || strcmp(arg, "--verbose") == 0) {
@@ -42,8 +42,7 @@ void apply_option(int argc, char **argv, Bogons *dns)
 	dns->set_verbose(verbose);
 	dns->set_mode(mode);
 	if (self) {
-		std::string hostname = get_host_name();
-		dns->set_hostname(hostname);
+		dns->update_names();
 		dns->set_self_mode(true);
 	}
 }
@@ -66,7 +65,7 @@ int main(int argc, char **argv)
 #endif
 
 	try {
-		Bogons dns(ini, hosts);
+		bogons dns(ini, hosts);
 		apply_option(argc, argv, &dns);
 		dns.main();
 	} catch (std::string const &e) {

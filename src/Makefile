@@ -5,7 +5,7 @@ CXXFLAGS=-O2 -std=c++11
 
 all: $(TARGET)
 
-$(TARGET): main.o Bogons.o rwfile.o network.o
+$(TARGET): main.o bogons.o rwfile.o network.o
 	g++ -o $@ $^
 	strip $@
 

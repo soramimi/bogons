@@ -1,4 +1,4 @@
-#include "Bogons.h"
+#include "bogons.h"
 
 #include "network.h"
 #include "rwfile.h"
@@ -52,11 +52,11 @@ static inline std::string STRERROR(std::string const &s)
 
 #define DNS_CLASS_IN 1
 
-struct Bogons::dns_a_record_t {
+struct bogons::dns_a_record_t {
 	uint32_t addr;
 };
 
-struct Bogons::dns_header_t {
+struct bogons::dns_header_t {
 	uint16_t id;
 	uint16_t flags;
 	uint16_t qdcount;
@@ -65,7 +65,7 @@ struct Bogons::dns_header_t {
 	uint16_t arcount;
 };
 
-struct Bogons::query_t {
+struct bogons::query_t {
 	uint16_t upstream_id;
 	uint16_t requester_id;
 	time_t time;
@@ -74,13 +74,13 @@ struct Bogons::query_t {
 	std::string name;
 };
 
-struct Bogons::question_t {
+struct bogons::question_t {
 	std::string name;
 	uint16_t type;
 	uint16_t clas;
 };
 
-struct Bogons::answer_t {
+struct bogons::answer_t {
 	std::string name;
 	uint16_t type;
 	uint16_t clas;
@@ -88,7 +88,7 @@ struct Bogons::answer_t {
 	std::vector<char> data;
 };
 
-struct Bogons::name_map_t {
+struct bogons::name_map_t {
 	struct less_t {
 		bool operator () (std::string const &left, std::string const &right) const
 		{
@@ -98,7 +98,7 @@ struct Bogons::name_map_t {
 	std::map<std::string, dns_a_record_t, less_t> map;
 };
 
-struct Bogons::Private {
+struct bogons::Private {
 	std::string hostsfile;
 	time_t hoststime;
 
@@ -122,97 +122,97 @@ struct Bogons::Private {
 	bool verbose;
 };
 
-Bogons::Bogons(const std::string &inifile, const std::string &hostsfile)
+bogons::bogons(const std::string &inifile, const std::string &hostsfile)
 {
-	pv = new Private();
-	pv->verbose = false;
-	pv->hostsfile = hostsfile;
-	pv->mode = Mode::DNS;
-	pv->self_mode = false;
-	parse_ini_file(inifile.c_str(), &pv->ini);
+	m = new Private();
+	m->verbose = false;
+	m->hostsfile = hostsfile;
+	m->mode = Mode::DNS;
+	m->self_mode = false;
+	parse_ini_file(inifile.c_str(), &m->ini);
 	read_hosts_file();
 	init_ttl();
 	init_upstream_server();
 }
 
-Bogons::~Bogons()
+bogons::~bogons()
 {
-	delete pv;
+	delete m;
 }
 
-void Bogons::set_verbose(bool f)
+void bogons::set_verbose(bool f)
 {
-	pv->verbose = f;
+	m->verbose = f;
 }
 
-void Bogons::set_mode(Mode mode)
+void bogons::set_mode(Mode mode)
 {
-	pv->mode = mode;
+	m->mode = mode;
 }
 
-bool Bogons::is_self_mode() const
+bool bogons::is_self_mode() const
 {
-	return pv->self_mode;
+	return m->self_mode;
 }
 
-void Bogons::set_self_mode(bool f)
+void bogons::set_self_mode(bool f)
 {
-	pv->self_mode = f;
+	m->self_mode = f;
 }
 
-void Bogons::update_netif_table()
+void bogons::update_netif_table()
 {
 	time_t t = time(nullptr);
-	if (pv->netif_timestamp < t) {
-		pv->netif_timestamp = t + 10;
-		if (pv->my_host_name.empty()) {
-			pv->netif_table.clear();
+	if (m->netif_timestamp < t) {
+		m->netif_timestamp = t + 10;
+		m->my_host_name = get_host_name();
+		m->my_host_name_local = m->my_host_name + ".local";
+		if (m->my_host_name.empty()) {
+			m->netif_table.clear();
 		} else {
-			get_netif_table(&pv->netif_table);
+			get_netif_table(&m->netif_table);
 		}
 	}
 }
 
-void Bogons::set_hostname(const std::string &name)
+void bogons::update_names()
 {
-	pv->my_host_name = name;
-	pv->my_host_name_local = name + ".local";
 	update_netif_table();
 }
 
-bool Bogons::eqi(const std::string &l, const std::string &r)
+bool bogons::eqi(const std::string &l, const std::string &r)
 {
 	return stricmp(l.c_str(), r.c_str()) == 0;
 }
 
-bool Bogons::verbose() const
+bool bogons::verbose() const
 {
-	return pv->verbose;
+	return m->verbose;
 }
 
-bool Bogons::isDNS() const
+bool bogons::isDNS() const
 {
-	return pv->mode == Mode::DNS;
+	return m->mode == Mode::DNS;
 }
 
-bool Bogons::isMDNS() const
+bool bogons::isMDNS() const
 {
-	return pv->mode == Mode::MDNS;
+	return m->mode == Mode::MDNS;
 }
 
-bool Bogons::isWINS() const
+bool bogons::isWINS() const
 {
-	return pv->mode == Mode::WINS;
+	return m->mode == Mode::WINS;
 }
 
-bool Bogons::isLLMNR() const
+bool bogons::isLLMNR() const
 {
-	return pv->mode == Mode::LLMNR;
+	return m->mode == Mode::LLMNR;
 }
 
-uint16_t Bogons::port() const
+uint16_t bogons::port() const
 {
-	switch (pv->mode) {
+	switch (m->mode) {
 	case Mode::MDNS:  return 5353;
 	case Mode::WINS:  return 137;
 	case Mode::LLMNR: return 5355;
@@ -220,36 +220,36 @@ uint16_t Bogons::port() const
 	return 53;
 }
 
-int Bogons::ttl() const
+int bogons::ttl() const
 {
-	return pv->ttl;
+	return m->ttl;
 }
 
-void Bogons::write(std::vector<char> *out, char c)
+void bogons::write(std::vector<char> *out, char c)
 {
 	out->push_back(c);
 }
 
-void Bogons::write(std::vector<char> *out, const char *src, int len)
+void bogons::write(std::vector<char> *out, const char *src, int len)
 {
 	if (src && len > 0) {
 		out->insert(out->end(), src, src + len);
 	}
 }
 
-void Bogons::write_us(std::vector<char> *out, uint16_t v)
+void bogons::write_us(std::vector<char> *out, uint16_t v)
 {
 	v = htons(v);
 	write(out, (char const *)&v, 2);
 }
 
-void Bogons::write_ul(std::vector<char> *out, uint32_t v)
+void bogons::write_ul(std::vector<char> *out, uint32_t v)
 {
 	v = htonl(v);
 	write(out, (char const *)&v, 4);
 }
 
-void Bogons::write_name(std::vector<char> *out, const std::string &name)
+void bogons::write_name(std::vector<char> *out, const std::string &name)
 {
 	char const *name_begin = name.c_str();
 	char const *name_end = name_begin + name.size();
@@ -270,7 +270,7 @@ void Bogons::write_name(std::vector<char> *out, const std::string &name)
 	write(out, (char)0);
 }
 
-int Bogons::decode_name(const char *begin, const char *end, const char *ptr, std::vector<char> *out)
+int bogons::decode_name(const char *begin, const char *end, const char *ptr, std::vector<char> *out)
 {
 	if (begin && ptr && begin <= ptr && ptr < end) {
 		char const *start = ptr;
@@ -302,7 +302,7 @@ int Bogons::decode_name(const char *begin, const char *end, const char *ptr, std
 	return 0;
 }
 
-int Bogons::decode_name(const char *begin, const char *end, const char *ptr, std::string *name)
+int bogons::decode_name(const char *begin, const char *end, const char *ptr, std::string *name)
 {
 	std::vector<char> tmp;
 	tmp.reserve(100);
@@ -315,7 +315,7 @@ int Bogons::decode_name(const char *begin, const char *end, const char *ptr, std
 	return 0;
 }
 
-void Bogons::split(const char *begin, const char *end, std::vector<std::string> *out)
+void bogons::split(const char *begin, const char *end, std::vector<std::string> *out)
 {
 	out->clear();
 	char const *ptr = begin;
@@ -339,14 +339,14 @@ void Bogons::split(const char *begin, const char *end, std::vector<std::string> 
 	}
 }
 
-std::string Bogons::trimmed(const char *left, const char *right)
+std::string bogons::trimmed(const char *left, const char *right)
 {
 	while (left < right && isspace(*left & 0xff)) left++;
 	while (left < right && isspace(right[-1] & 0xff)) right--;
 	return std::string(left, right);
 }
 
-void Bogons::parse_ini_file(const char *path, std::map<std::string, std::string> *out)
+void bogons::parse_ini_file(const char *path, std::map<std::string, std::string> *out)
 {
 	out->clear();
 
@@ -396,7 +396,7 @@ void Bogons::parse_ini_file(const char *path, std::map<std::string, std::string>
 	}
 }
 
-void Bogons::parse_hosts_file(const char *path, Bogons::name_map_t *out)
+void bogons::parse_hosts_file(const char *path, bogons::name_map_t *out)
 {
 	out->map.clear();
 
@@ -454,22 +454,22 @@ void Bogons::parse_hosts_file(const char *path, Bogons::name_map_t *out)
 	}
 }
 
-time_t Bogons::get_hosts_time()
+time_t bogons::get_hosts_time()
 {
 	struct stat st;
-	if (stat(pv->hostsfile.c_str(), &st) == 0) {
+	if (stat(m->hostsfile.c_str(), &st) == 0) {
 		return st.st_mtime;
 	}
 	return 0;
 }
 
-void Bogons::read_hosts_file()
+void bogons::read_hosts_file()
 {
-	pv->hoststime = get_hosts_time();
-	parse_hosts_file(pv->hostsfile.c_str(), &pv->dns_a_map);
+	m->hoststime = get_hosts_time();
+	parse_hosts_file(m->hostsfile.c_str(), &m->dns_a_map);
 }
 
-void Bogons::write_dns_header(std::vector<char> *out, uint16_t id, uint16_t flags, uint16_t qdcount, uint16_t ancount, uint16_t nscount, uint16_t arcount)
+void bogons::write_dns_header(std::vector<char> *out, uint16_t id, uint16_t flags, uint16_t qdcount, uint16_t ancount, uint16_t nscount, uint16_t arcount)
 {
 	uint16_t tmp[6];
 	tmp[0] = htons(id);
@@ -481,14 +481,14 @@ void Bogons::write_dns_header(std::vector<char> *out, uint16_t id, uint16_t flag
 	write(out, (char const *)tmp, 12);
 }
 
-void Bogons::write_dns_question_rr(std::vector<char> *out, const std::string &name, uint16_t type, uint16_t clas)
+void bogons::write_dns_question_rr(std::vector<char> *out, const std::string &name, uint16_t type, uint16_t clas)
 {
 	write_name(out, name);
 	write_us(out, type);
 	write_us(out, clas);
 }
 
-void Bogons::write_dns_answer_rr(std::vector<char> *out, const std::string &name, uint16_t type, uint16_t clas, uint32_t ttl, const Bogons::dns_a_record_t &item)
+void bogons::write_dns_answer_rr(std::vector<char> *out, const std::string &name, uint16_t type, uint16_t clas, uint32_t ttl, const bogons::dns_a_record_t &item)
 {
 	uint32_t addr = htonl(item.addr);
 	write_name(out, name);
@@ -499,7 +499,7 @@ void Bogons::write_dns_answer_rr(std::vector<char> *out, const std::string &name
 	write(out, (char const *)&addr, 4);
 }
 
-void Bogons::write_wins_rr(std::vector<char> *out, const std::string &name, uint16_t type, uint16_t clas, uint32_t ttl, uint16_t nameflags, const Bogons::dns_a_record_t &item)
+void bogons::write_wins_rr(std::vector<char> *out, const std::string &name, uint16_t type, uint16_t clas, uint32_t ttl, uint16_t nameflags, const bogons::dns_a_record_t &item)
 {
 	uint32_t addr = htonl(item.addr);
 	write_name(out, name);
@@ -511,7 +511,7 @@ void Bogons::write_wins_rr(std::vector<char> *out, const std::string &name, uint
 	write(out, (char const *)&addr, 4);
 }
 
-int Bogons::parse_question_section(const char *begin, const char *end, const char *ptr, Bogons::question_t *out)
+int bogons::parse_question_section(const char *begin, const char *end, const char *ptr, bogons::question_t *out)
 {
 	int n = decode_name(begin, end, ptr, &out->name);
 	if (n > 0 && !out->name.empty()) {
@@ -527,10 +527,10 @@ int Bogons::parse_question_section(const char *begin, const char *end, const cha
 	return 0;
 }
 
-bool Bogons::get_ini_string(const std::string &name, std::string *out) const
+bool bogons::get_ini_string(const std::string &name, std::string *out) const
 {
-	std::map<std::string, std::string>::const_iterator it = pv->ini.find(name);
-	if (it != pv->ini.end()) {
+	std::map<std::string, std::string>::const_iterator it = m->ini.find(name);
+	if (it != m->ini.end()) {
 		if (out) {
 			*out = it->second;
 		}
@@ -539,7 +539,7 @@ bool Bogons::get_ini_string(const std::string &name, std::string *out) const
 	return false;
 }
 
-std::string Bogons::get_ini_string(const std::string &name, const std::string &def) const
+std::string bogons::get_ini_string(const std::string &name, const std::string &def) const
 {
 	std::string s;
 	if (get_ini_string(name, &s)) {
@@ -548,12 +548,12 @@ std::string Bogons::get_ini_string(const std::string &name, const std::string &d
 	return def;
 }
 
-uint32_t Bogons::get_upstream_server()
+uint32_t bogons::get_upstream_server()
 {
-	return pv->upstream_server;
+	return m->upstream_server;
 }
 
-uint32_t Bogons::get_addr_by_name(const char *name)
+uint32_t bogons::get_addr_by_name(const char *name)
 {
 	if (!name) return 0;
 	if (!*name) return 0;
@@ -580,61 +580,61 @@ uint32_t Bogons::get_addr_by_name(const char *name)
 #endif
 }
 
-void Bogons::init_upstream_server()
+void bogons::init_upstream_server()
 {
 	std::string s = get_ini_string("masterserver");
 	uint32_t a = get_addr_by_name(s.c_str());
 	if (a != 0 && a != INADDR_NONE) {
-		pv->upstream_server = ntohl(a);
+		m->upstream_server = ntohl(a);
 	} else {
-		pv->upstream_server = 0;
+		m->upstream_server = 0;
 	}
 }
 
-void Bogons::cleanup()
+void bogons::cleanup()
 {
 	time_t now = time(0);
-	size_t i = pv->queries.size();
+	size_t i = m->queries.size();
 	while (i > 0) {
 		i--;
-		if (pv->queries[i].time - now > 2) {
-			pv->queries.erase(pv->queries.begin() + i);
+		if (m->queries[i].time - now > 2) {
+			m->queries.erase(m->queries.begin() + i);
 		}
 	}
 }
 
-bool Bogons::take_query(uint16_t id, Bogons::query_t *out)
+bool bogons::take_query(uint16_t id, bogons::query_t *out)
 {
 	bool ok = false;
-	size_t i = pv->queries.size();
+	size_t i = m->queries.size();
 	while (i > 0) {
 		i--;
-		query_t const &q = pv->queries[i];
+		query_t const &q = m->queries[i];
 		if (id == q.upstream_id) {
 			if (out) {
 				*out = q;
 				out = 0;
 				ok = true;
 			}
-			pv->queries.erase(pv->queries.begin() + i);
+			m->queries.erase(m->queries.begin() + i);
 		}
 	}
 	return ok;
 }
 
-void Bogons::delete_pending_query(uint16_t id)
+void bogons::delete_pending_query(uint16_t id)
 {
 	query_t q;
 	take_query(id, &q);
 }
 
-void Bogons::push_query(const Bogons::query_t &query)
+void bogons::push_query(const bogons::query_t &query)
 {
 	take_query(query.upstream_id, 0);
-	pv->queries.push_back(query);
+	m->queries.push_back(query);
 }
 
-std::string Bogons::decode_netbios_name(const std::string &name, int *restype)
+std::string bogons::decode_netbios_name(const std::string &name, int *restype)
 {
 	int n = name.size() / 2;
 	if (n > 16) n = 16;
@@ -658,10 +658,10 @@ std::string Bogons::decode_netbios_name(const std::string &name, int *restype)
 	return std::string();
 }
 
-bool Bogons::get_my_address(uint32_t srcaddr, Bogons::dns_a_record_t *out)
+bool bogons::get_my_address(uint32_t srcaddr, bogons::dns_a_record_t *out)
 {
 	update_netif_table();
-	std::vector<netif_t> const *table = &pv->netif_table;
+	std::vector<netif_t> const *table = &m->netif_table;
 	for (std::vector<netif_t>::const_iterator it = table->begin(); it != table->end(); it++) {
 		netif_t const &netif = *it;
 		if ((netif.addr & netif.mask) == (srcaddr & netif.mask)) {
@@ -672,7 +672,7 @@ bool Bogons::get_my_address(uint32_t srcaddr, Bogons::dns_a_record_t *out)
 	return false;
 }
 
-void Bogons::make_response(const Bogons::dns_header_t &header, const Bogons::question_t &q, const Bogons::dns_a_record_t &r, std::vector<char> *out)
+void bogons::make_response(const bogons::dns_header_t &header, const bogons::question_t &q, const bogons::dns_a_record_t &r, std::vector<char> *out)
 {
 	if ((isDNS() || isLLMNR()) && q.type == DNS_TYPE_A) {
 		uint16_t flags = 0x8180;
@@ -693,19 +693,19 @@ void Bogons::make_response(const Bogons::dns_header_t &header, const Bogons::que
 	}
 }
 
-void Bogons::init_ttl()
+void bogons::init_ttl()
 {
-	pv->ttl = 0;
+	m->ttl = 0;
 	std::string s;
 	if (get_ini_string("ttl", &s)) {
-		pv->ttl = atoi(s.c_str());
+		m->ttl = atoi(s.c_str());
 	}
-	if (pv->ttl < 1) {
-		pv->ttl = 60;
+	if (m->ttl < 1) {
+		m->ttl = 60;
 	}
 }
 
-std::string Bogons::stripv4(uint32_t a)
+std::string bogons::stripv4(uint32_t a)
 {
 	char tmp[20];
 	sprintf(tmp, "%u.%u.%u.%u"
@@ -717,7 +717,7 @@ std::string Bogons::stripv4(uint32_t a)
 	return tmp;
 }
 
-void Bogons::parse_response(const char *begin, const char *end, Bogons::dns_header_t *header, std::list<Bogons::question_t> *questions, std::list<Bogons::answer_t> *answers)
+void bogons::parse_response(const char *begin, const char *end, bogons::dns_header_t *header, std::list<bogons::question_t> *questions, std::list<bogons::answer_t> *answers)
 {
 	char const *ptr = begin;
 
@@ -765,15 +765,15 @@ void Bogons::parse_response(const char *begin, const char *end, Bogons::dns_head
 	}
 }
 
-void Bogons::main()
+void bogons::main()
 {
-	pv->next_transaction_id = 0;
+	m->next_transaction_id = 0;
 
 	if (verbose()) {
 		printf("Boguns - The Bogus Name Service\n\n");
 
 		char const *mode = "DNS(UDP/53)";
-		switch (pv->mode) {
+		switch (m->mode) {
 		case Mode::WINS:
 			mode = "WINS(UDP/137)";
 			break;
@@ -828,7 +828,7 @@ void Bogons::main()
 			continue;
 		}
 
-		if (get_hosts_time() != pv->hoststime) {
+		if (get_hosts_time() != m->hoststime) {
 			read_hosts_file();
 		}
 
@@ -846,7 +846,7 @@ void Bogons::main()
 						// ignore
 					} else {
 						std::string name;
-						switch (pv->mode) {
+						switch (m->mode) {
 						case Mode::WINS:
 							if (q.type == DNS_TYPE_NB) {
 								int rt = -1;
@@ -872,8 +872,8 @@ void Bogons::main()
 							dns_a_record_t record;
 							bool found = false;
 							{
-								auto it = pv->dns_a_map.map.find(name);
-								if (it != pv->dns_a_map.map.end()) { // found
+								auto it = m->dns_a_map.map.find(name);
+								if (it != m->dns_a_map.map.end()) { // found
 									record = it->second;
 									found = true;
 								} else if (is_self_mode()) {
@@ -883,7 +883,7 @@ void Bogons::main()
 											record.addr = *(uint32_t *)h->h_addr;
 											found = true;
 										}
-									} else if (eqi(name, pv->my_host_name) || eqi(name, pv->my_host_name_local)) {
+									} else if (eqi(name, m->my_host_name) || eqi(name, m->my_host_name_local)) {
 										uint32_t src = ntohl(((struct sockaddr_in *)&sa)->sin_addr.s_addr);
 										if (get_my_address(src, &record)) {
 											found = true;
@@ -902,7 +902,7 @@ void Bogons::main()
 								if (isDNS() && q.type == DNS_TYPE_A) {
 									uint32_t server = get_upstream_server();
 									if (server != 0) {
-										uint16_t id = pv->next_transaction_id++;
+										uint16_t id = m->next_transaction_id++;
 										delete_pending_query(id);
 										{
 											query_t t;

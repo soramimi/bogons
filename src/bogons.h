@@ -7,7 +7,7 @@
 #include <list>
 #include <map>
 
-class Bogons {
+class bogons {
 public:
 	enum class Mode {
 		DNS,
@@ -24,17 +24,17 @@ private:
 	struct name_map_t;
 
 	struct Private;
-	Private *pv;
+	Private *m;
 
 public:
-	Bogons(std::string const &inifile, std::string const &hostsfile);
-	~Bogons();
+	bogons(std::string const &inifile, std::string const &hostsfile);
+	~bogons();
 	void set_verbose(bool f);
 	void set_mode(Mode mode);
 	void main();
 	bool is_self_mode() const;
 	void set_self_mode(bool f);
-	void set_hostname(std::string const &name);
+	void update_names();
 private:
 	static inline bool eqi(std::string const &l, std::string const &r);
 	bool verbose() const;

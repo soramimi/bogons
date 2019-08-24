@@ -1,3 +1,4 @@
 *.user
 src/bogons
 src/*.o
+_bin/
