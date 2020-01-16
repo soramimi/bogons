@@ -634,7 +634,7 @@ void bogons::push_query(const bogons::query_t &query)
 	m->queries.push_back(query);
 }
 
-std::string bogons::decode_netbios_name(const std::string &name, int *restype)
+std::string bogons::decode_netbios_name(const std::string &name, int *resourcetype)
 {
 	int n = name.size() / 2;
 	if (n > 16) n = 16;
@@ -650,11 +650,11 @@ std::string bogons::decode_netbios_name(const std::string &name, int *restype)
 	}
 	if (i > 1) {
 		i--;
-		*restype = tmp[i];
+		*resourcetype = tmp[i];
 		while (i > 0 && isspace(tmp[i - 1])) i--;
 		return std::string((char const *)tmp, i);
 	}
-	*restype = -1;
+	*resourcetype = -1;
 	return std::string();
 }
 
@@ -849,9 +849,16 @@ void bogons::main()
 						switch (m->mode) {
 						case Mode::WINS:
 							if (q.type == DNS_TYPE_NB) {
-								int rt = -1;
+								int rt = -1; // resource type
 								name = decode_netbios_name(q.name, &rt);
-								if (rt != 0) {
+								if (verbose()) {
+									printf("netbios name: %s<%02X>\n", name.c_str(), rt);
+								}
+								if (rt == 0) {
+									// <00> workstation service
+								} else if (rt == 0x20) {
+									// <20> file server service
+								} else {
 									continue;
 								}
 							}
