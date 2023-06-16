@@ -6,6 +6,8 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #pragma comment(lib, "ws2_32.lib")
+#else
+#include <unistd.h>
 #endif
 
 #include "bogons.h"
@@ -64,13 +66,16 @@ int main(int argc, char **argv)
 	std::string hosts = "/var/bogons/hosts";
 #endif
 
-	try {
-		bogons dns(ini, hosts);
-		apply_option(argc, argv, &dns);
-		dns.main();
-	} catch (std::string const &e) {
-		fprintf(stderr, "%s\n", e.c_str());
-				return 1;
+	for (int retry = 0; retry < 60; retry++) {
+		try {
+			bogons dns(ini, hosts);
+			apply_option(argc, argv, &dns);
+			dns.main();
+			break;
+		} catch (std::string const &e) {
+			fprintf(stderr, "%s\n", e.c_str());
+		}
+		sleep(1);
 	}
 
 	return 0;
