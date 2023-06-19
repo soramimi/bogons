@@ -1,6 +1,6 @@
 
 // Bogons - The Bogus Name Service
-// Copyright (C) 2017 S.Fuchita (@soramimi_jp)
+// Copyright (C) 2023 S.Fuchita (@soramimi_jp)
 
 #ifdef WIN32
 #include <winsock2.h>
@@ -15,17 +15,23 @@
 
 #include <string.h>
 
+struct Option {
+	bool daemon = false;
+};
 
-void apply_option(int argc, char **argv, bogons *dns)
+void apply_option(int argc, char **argv, bogons *ns, Option *opt)
 {
 	bogons::Mode mode = bogons::Mode::DNS;
 	bool self = false;
 	bool verbose = false;
+	*opt = {};
 
 	for (int i = 1; i < argc; i++) {
 		char const *arg = argv[i];
 		if (arg[0] == '-') {
-			if (strcmp(arg, "-d") == 0 || strcmp(arg, "--dns") == 0) {
+			if (strcmp(arg, "-D") == 0 || strcmp(arg, "--daemon") == 0) {
+				opt->daemon = true;
+			} else if (strcmp(arg, "-d") == 0 || strcmp(arg, "--dns") == 0) {
 				mode = bogons::Mode::DNS;
 			} else if (strcmp(arg, "-w") == 0 || strcmp(arg, "--wins") == 0) {
 				mode = bogons::Mode::WINS;
@@ -41,12 +47,40 @@ void apply_option(int argc, char **argv, bogons *dns)
 		}
 	}
 
-	dns->set_verbose(verbose);
-	dns->set_mode(mode);
+	ns->set_verbose(verbose);
+	ns->set_mode(mode);
 	if (self) {
-		dns->update_names();
-		dns->set_self_mode(true);
+		ns->update_names();
+		ns->set_self_mode(true);
 	}
+}
+
+int main2(bogons *ns, Option *opt)
+{
+	auto Perform = [&](){
+		try {
+			ns->main();
+		} catch (std::string const &e) {
+			fprintf(stderr, "%s\n", e.c_str());
+		}
+	};
+
+#ifdef WIN32
+#else
+	if (opt->daemon) {
+		if (daemon(0, 0) != 0) {
+			fprintf(stderr, "daemon() failed\n");
+			return 1;
+		}
+		while (1) {
+			Perform();
+			sleep(1);
+		}
+	}
+#endif
+
+	Perform();
+	return 0;
 }
 
 int main(int argc, char **argv)
@@ -66,17 +100,10 @@ int main(int argc, char **argv)
 	std::string hosts = "/var/bogons/hosts";
 #endif
 
-	for (int retry = 0; retry < 60; retry++) {
-		try {
-			bogons dns(ini, hosts);
-			apply_option(argc, argv, &dns);
-			dns.main();
-			break;
-		} catch (std::string const &e) {
-			fprintf(stderr, "%s\n", e.c_str());
-		}
-		sleep(1);
-	}
+	bogons ns(ini, hosts);
+	Option opt;
+	apply_option(argc, argv, &ns, &opt);
+	main2(&ns, &opt);
 
 	return 0;
 }
